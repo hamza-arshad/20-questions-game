@@ -51,6 +51,12 @@ export default new Vuex.Store({
     logout: ({ commit }) => {
       commit('RESET', '');
       window.location = "http://localhost:8080";
+    },
+    connect: ({ commit }) => {
+      commit('SOCKET_CONNECT');
+    },
+    disconnect: ({ commit }) => {
+      commit('SOCKET_DISCONNECT');
     }
   }
 });

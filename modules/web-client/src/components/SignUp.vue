@@ -3,7 +3,7 @@
         <h1 class="alignCenter">Sign Up</h1>
         <input class="topMargin" type="text" placeholder="Full Name" v-model="name" />
         <input class="topMargin" type="text" placeholder="Email" v-model="email" />
-        <input class="topMargin" type="text" placeholder="Password" v-model="password" />
+        <input class="topMargin" type="password" placeholder="Password" v-model="password" />
         <div class="topMargin btn-group">
             <input type="button" @click="signUp" value="Sign Up" />
             <input type="button" @click="login" value="Login" />

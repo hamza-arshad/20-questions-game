@@ -1,5 +1,6 @@
 const CONSTANTS = {
   API_BASE_URL: 'http://localhost:5000/api',
+  SOCKET_URL: 'http://localhost:5000',
   URLS: {
     AUTH: {
       LOGIN: '/auth/login',

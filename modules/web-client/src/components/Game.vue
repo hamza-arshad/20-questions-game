@@ -11,27 +11,38 @@
                 <input type="button" @click="submitWord" value="Submit" />
                 <p>{{msg}}</p>
             </div>
+            <div v-else>
+                <p>Word: {{game.word}}</p>
+            </div>
             <div>
                 <table id="questions">
                     <tr>
+                        <th>No.</th>
                         <th>Question</th>
                         <th>Answer</th>
+                        <th>Asked At</th>
                     </tr>
                     <tr v-if="canAskQuestion">
+                        <td></td>
                         <td><input type="text" placeholder="Question" v-model="questionText" /></td>
                         <td><input type="button" @click="submitQuestion" value="Submit" /></td>
+                        <td></td>
                     </tr>
-                    <tr v-for="question in questions" :key="question.id">
-                        <td>{{question.text}}</td>
-                        <td v-if="question.answer === null && canAnswerQuestion">
-                            <select @change="(e) => submitAnswer(e.target.value, question.id)">
+                    <tr v-for="({text, answer, id, created_at: createdAt}, idx) in questions" :key="id">
+                        <td>{{idx + 1}}</td>
+                        <td>{{text}}</td>
+                        <td v-if="answer === null && canAnswerQuestion">
+                            <select @change="(e) => submitAnswer(e.target.value, id)">
                                 <option disabled value="" selected>Select Answer</option>
                                 <option value="1">Yes</option>
                                 <option value="0">No</option>
                             </select>
                         </td>
                         <td v-else>
-                            {{ getAnswerText(question) }}
+                            {{ getAnswerText(answer) }}
+                        </td>
+                        <td>
+                            {{ createdAt | formatDate }}
                         </td>
                     </tr>
                 </table>
@@ -41,6 +52,7 @@
 </template>
 
 <script>
+  import { mapGetters } from 'vuex';
   import GameService from '@/services/GameService.js';
   import QuestionService from '@/services/QuestionService.js';
   import Header from './Header';
@@ -62,22 +74,28 @@
     components: {
       Header,
     },
-
     sockets: {
       connect: function () {
         console.log('socket connected');
+        this.$store.dispatch('connect');
         this.subscribeTo(this.gameId);
       },
+      disconnect: function () {
+        this.$store.dispatch('disconnect');
+      }
     },
     mounted() {
       this.gameId = this.$route.params.game;
       this.getGameById(this.gameId);
       this.maintainSocketConnection();
     },
+    beforeUnmount() {
+      this.unsubscribeFrom(this.gameId);
+    },
     computed: {
       isHost: function () {
         if (this.game)
-            return this.game.host_player === this.$store.getters.getUser.id;
+            return this.game.host_player === this.getUser.id;
         return null;
       },
       isEnded: function() {
@@ -86,12 +104,11 @@
         return null;
       },
       status: function() {
-        return this.isEnded && this.game.winner === this.$store.getters.getUser.id ? 'Won' : 'Lost';
+        return this.isEnded && this.game.winner === this.getUser.id ? 'Won' : 'Lost';
       },
       canAskQuestion: function () {
         if( this.game && !this.isHost && !this.isEnded ) {
-          console.log("ASKING");
-          let { questions } = this;
+          const { questions } = this;
           for( let i=0; i<questions.length; i++) {
             if(questions[i].answer === null)
               return false;
@@ -103,36 +120,45 @@
       canAnswerQuestion: function () {
         return this.isHost && !this.isEnded;
       },
+      ...mapGetters([
+        'isConnected',
+        'isLoggedIn',
+        'getUser',
+      ])
     },
     methods: {
       maintainSocketConnection() {
-        if(!this.$store.getters.isConnected) {
+        console.log(`is Connected ${this.isConnected}`);
+        if(!this.isConnected) {
           this.$socket.connect();
         } else {
           this.subscribeTo(this.gameId);
         }
       },
       subscribeTo(event) {
+        console.log(`subscribing ${event}`);
         this.sockets.subscribe(event, () => {
           this.getGameById(this.gameId);
         });
       },
+      unsubscribeFrom(event) {
+        this.sockets.unsubscribe(event);
+      },
       async getGameById(gameId) {
-        let token = this.$store.getters.isLoggedIn;
-        const game = await GameService.get(gameId, token);
-        if(game.responseCode === 200) {
-            this.game = game.response;
-            this.host = this.game.HostPlayer.name;
-            this.opponent = this.game.OpponentPlayer.name;
-            this.questions = this.game.Questions;
+        const response = await GameService.get(gameId, this.isLoggedIn);
+        if(response.responseCode === 200) {
+          const { response: game } = response;
+          this.game = game;
+          this.host = game.HostPlayer.name;
+          this.opponent = game.OpponentPlayer.name;
+          this.questions = game.Questions;
         } else {
           this.msg = "Unable to load game, please refresh.";
         }
       },
 
       async submitWord() {
-        let token = this.$store.getters.isLoggedIn;
-        let response = await GameService.guessWord({ word: this.wordGuess }, this.gameId, token);
+        const response = await GameService.guessWord({ word: this.wordGuess }, this.gameId, this.isLoggedIn);
         if(response.responseCode !== 200) {
           this.msg = 'Wrong Guess';
         }
@@ -141,23 +167,20 @@
       },
 
       async submitQuestion() {
-        let token = this.$store.getters.isLoggedIn;
-        let payload = {
+        const payload = {
           text: this.questionText,
           game_id: this.gameId
         }
-        await QuestionService.create(payload, token);
+        await QuestionService.create(payload, this.isLoggedIn);
+        this.questionText = '';
         await this.getGameById(this.gameId);
       },
-
       async submitAnswer(answer, questionId) {
-        let token = this.$store.getters.isLoggedIn;
-        await QuestionService.submitAnswer({answer: answer == true}, questionId, token);
+        await QuestionService.submitAnswer({answer: answer == true}, questionId, this.isLoggedIn);
         await this.getGameById(this.gameId);
       },
-
-      getAnswerText (question) {
-        return question.answer !== null ? question.answer ? 'Yes' : 'No' : 'Waiting for Answer';
+      getAnswerText (answer) {
+        return answer !== null ? answer ? 'Yes' : 'No' : 'Waiting for Answer';
       }
 
     }

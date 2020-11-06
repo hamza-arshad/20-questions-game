@@ -5,6 +5,9 @@
             <table id="games" class="alignCenter">
                 <tr>
                     <th>
+                        No.
+                    </th>
+                    <th>
                         Host
                     </th>
                     <th>
@@ -13,21 +16,28 @@
                     <th>
                         Status
                     </th>
+                    <th>
+                        Created At
+                    </th>
                 </tr>
                 <tr>
+                    <td></td>
                     <td><input type="text" placeholder="Word" v-model="word" /></td>
                     <td>
-                        <select v-model="user">
+                        <select v-model="selectedUser">
                             <option disabled value="" selected>Please select one</option>
                             <option v-for="user in users" :key="user.id" v-bind:value="user.id">{{user.name}}</option>
                         </select>
                     </td>
-                    <td><input type="button" @click="addNewGame" value="Add New Game" /></td>
+                    <td><input type="button" @click="addNewGame" value="Add New Game" :disabled="isLoading" /></td>
+                    <td></td>
                 </tr>
-                <tr v-for="game in games" :key="game.id" @click="redirectToGame(game)">
-                    <td>{{game.HostPlayer.name}}</td>
-                    <td>{{game.OpponentPlayer.name}}</td>
-                    <td>{{ game.winner ? game.winner === currentUserId ? 'Won' : 'Lost' : 'In Progress' }}</td>
+                <tr v-for="({HostPlayer: {name: hostName}, OpponentPlayer: {name: opponentName}, winner, id, created_at: createdAt }, idx) in games" :key="id" @click="redirectToGame(id)">
+                    <td>{{ idx + 1 }}</td>
+                    <td>{{ hostName }}</td>
+                    <td>{{ opponentName }}</td>
+                    <td>{{ winner ? winner === getUser.id ? 'Won' : 'Lost' : 'In Progress' }}</td>
+                    <td>{{ createdAt | formatDate }}</td>
                 </tr>
             </table>
             <p>{{ msg }}</p>
@@ -35,21 +45,20 @@
     </div>
 </template>
 <script>
+  import { mapGetters } from 'vuex';
   import Header from './Header';
   import GameService from '@/services/GameService.js';
   import UserService from '@/services/UserService.js';
-  import store from "../store";
 
   export default {
     data() {
       return {
         games: [],
-        name: '',
         msg: '',
         word: '',
-        user: null,
+        selectedUser: null,
         users: [],
-        currentUserId: null,
+        isLoading: false,
       };
     },
     components: {
@@ -58,38 +67,55 @@
     sockets: {
       connect: function () {
         console.log('socket connected');
-        this.subscribeTo(this.currentUserId);
+        this.$store.dispatch('connect');
+        this.subscribeTo(this.getUser.id);
       },
+      disconnect: function () {
+        this.$store.dispatch('disconnect');
+      }
     },
     async mounted() {
-      this.name = this.$store.getters.getUser.name;
-      this.currentUserId = this.$store.getters.getUser.id;
       this.games = await this.fetchGames();
       this.users = await this.fetchUsers();
       this.maintainSocketConnection();
     },
+    beforeUnmount() {
+      this.unsubscribeFrom(this.getUser.id);
+    },
+    computed: {
+        ...mapGetters([
+          'isConnected',
+          'isLoggedIn',
+          'getUser',
+        ])
+    },
     methods: {
       maintainSocketConnection() {
-        if(!this.$store.getters.isConnected) {
+        if(!this.isConnected) {
           this.$socket.connect({
-            options: { path: '', autoConnect: false, query: { token: store.getters.isLoggedIn } }
+            options: { path: '', autoConnect: false, query: { token: this.isLoggedIn } }
           });
         } else {
-          this.subscribeTo(this.currentUserId);
+          this.subscribeTo(this.getUser.id);
         }
       },
       subscribeTo(event) {
         this.sockets.subscribe(event, (data) => {
-          this.games.push(data);
+          this.games.unshift(data);
         });
+      },
+      unsubscribeFrom(event) {
+        this.sockets.unsubscribe(event);
+      },
+      removeSocketSubscriptions() {
+        this.sockets.removeAllListeners();
       },
       logout() {
         this.$store.dispatch('logout');
         this.$router.push('/login');
       },
       async fetchUsers() {
-        const token = this.$store.getters.isLoggedIn;
-        let usersResponse = await UserService.getAll(token);
+        const usersResponse = await UserService.getAll(this.isLoggedIn);
         if(usersResponse.responseCode === 200) {
           return usersResponse.response;
         } else {
@@ -97,36 +123,32 @@
         }
       },
       async fetchGames() {
-        let token = this.$store.getters.isLoggedIn;
-        let gamesResponse = await GameService.getAll(token);
+        const gamesResponse = await GameService.getAll(this.isLoggedIn);
         if(gamesResponse.responseCode === 200) {
           return gamesResponse.response;
         } else {
           return null;
         }
       },
-      redirectToGame(game) {
-        this.$router.push({name: 'Game', params: {game: game.id}});
+      redirectToGame(id) {
+        this.$router.push({name: 'Game', params: {game: id}});
       },
       async addNewGame() {
-        if(this.loading)
-          return;
-        let token = this.$store.getters.isLoggedIn;
-        if(this.word && this.user) {
-          let payload = {
+        if(this.word && this.selectedUser) {
+          const payload = {
             word: this.word,
-            opponent_player: this.user,
+            opponent_player: this.selectedUser,
           }
-          this.loading = true;
-          let game = await GameService.create(payload, token);
+          this.isLoading = true;
+          const game = await GameService.create(payload, this.isLoggedIn);
           if(game.responseCode === 200) {
-            this.games = await this.fetchGames(token);
+            this.games = await this.fetchGames(this.isLoggedIn);
             this.word = '';
-            this.user = null;
+            this.selectedUser = null;
           } else {
             this.msg = "Unable to create new game";
           }
-          this.loading = false;
+          this.isLoading = false;
         } else {
           this.msg = "Please enter word and select user.";
         }
