@@ -1,0 +1,33 @@
+version: '3'
+
+services:
+  frontend:
+    build: modules/web-client
+    ports:
+      - 8080:8080
+  db:
+    image: mysql/mysql-server:5.7.22
+    environment:
+      MYSQL_ROOT_HOST: "%"
+      MYSQL_HOST: "localhost"
+      MYSQL_ROOT_PASSWORD: "calipsa"
+      MYSQL_DATABASE: "calipsa"
+      MYSQL_USER: "calipsa"
+      MYSQL_PASSWORD: "calipsa"
+      MYSQL_LOG_CONSOLE: "true"
+    restart: always
+
+  backend:
+    build: modules/api-server
+    links:
+      - db
+    ports:
+      - 5000:5000
+    environment:
+      DB_HOST: db
+      DB_USER: calipsa
+      DB_NAME: calipsa
+      DB_PASSWORD: calipsa
+      NODE_ENV: development
+      PORT: 5000
+      JWT_SECRET: hamzaarshad
