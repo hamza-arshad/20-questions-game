@@ -7,7 +7,7 @@ const bcrypt = require('bcrypt');
  * Auth Service
  *
  */
-const login =  async (email, password, res) => {
+const login = async (email, password, res) => {
   const { db: {
     models: {
       User,
@@ -35,7 +35,7 @@ const login =  async (email, password, res) => {
   }
 };
 
-const register =  async (name, email, password, logInAfter, role, res) => {
+const register = async (name, email, password, logInAfter, role, res) => {
   const { db: {
     models: {
       Role,
@@ -62,12 +62,15 @@ const register =  async (name, email, password, logInAfter, role, res) => {
       password: encryptedPassword,
       role_id: dbRole.id,
     });
-    const token = getToken(newUser);
+
+    // generating and returning token
+    const user = await User.getUser(newUser.id);
+    const token = getToken(user);
     return {
-      id: newUser.id,
-      email: newUser.email,
-      name: newUser.name,
-      permission: newUser.Role.name,
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      permission: user.Role.name,
       token
     };
   } catch (err){

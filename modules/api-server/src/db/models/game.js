@@ -62,14 +62,20 @@ class Game extends Sequelize.Model {
     return this.update(payload.id, payload);
   }
 
-  static async getGame (id) {
+  static async getGame(id) {
+    const { db: {
+      models: {
+        Question
+      }
+    }} = global;
     return this.findOne({
       where: {
         id
       },
       include: ['HostPlayer', 'OpponentPlayer', {
-        model: global.db.models.Question,
+        model: Question,
       }],
+      order: [[Question, 'created_at', 'desc']],
     });
   }
 
@@ -82,10 +88,11 @@ class Game extends Sequelize.Model {
           opponent_player: id,
         }]
       },
+      order: [['created_at', 'desc']],
       include: ['HostPlayer', 'OpponentPlayer'],
+      attributes: { exclude: ['word'] }
     });
   }
-
 };
 
 module.exports = Game;

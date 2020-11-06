@@ -9,17 +9,15 @@ const { RULES: {
  * Auth Service
  *
  */
-const create =  async (payload, currentUserId) => {
+const create = async (payload) => {
   const { db: {
     models: {
       Question
     }
   }} = global;
-
   try {
-    let question = await Question.createQuestion(payload);
-    let event = question.game_id;
-    SocketService.triggerUpdate(event, question);
+    const question = await Question.createQuestion(payload);
+    SocketService.triggerUpdate(question.game_id, question);
   } catch (err){
     throw getBadRequestObject(`Unable to create new question: ${JSON.stringify(err)}`);
   }
@@ -38,7 +36,7 @@ const submitAnswer =  async (questionId, answer, currentUserId) => {
       throw 'Question not found';
 
     question = await question.update({answer: answer});
-    let questionCount = await Question.getQuestionCountOfGame(question.game_id);
+    const questionCount = await Question.getQuestionCountOfGame(question.game_id);
     if(questionCount >= MAX_QUESTIONS_ALLOWED) {
       await endGame(question.game_id, currentUserId);
     }

@@ -14,7 +14,7 @@ async function canGuessWord(req, res, next) {
       id
     }
   } = req;
-  let game = await Game.getGame(id);
+  const game = await Game.getGame(id);
   if ( game.opponent_player === userId ) {
     return next();
   }
@@ -35,9 +35,9 @@ async function canAskQuestion(req, res, next) {
       game_id
     }
   } = req;
-  let game = await Game.getGame(game_id);
+  const game = await Game.getGame(game_id);
   if ( game.opponent_player === userId) {
-    let { Questions } = game;
+    const { Questions } = game;
     for(let i = 0; i<Questions.length; i++)
       if(Questions[i].answer === null) {
         return next(null);

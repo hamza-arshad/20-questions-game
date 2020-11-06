@@ -5,7 +5,7 @@ const SocketService = require('../../services/socket');
  * Game Service
  *
  */
-const create =  async (payload) => {
+const create = async (payload) => {
   const { db: {
     models: {
       Game
@@ -13,13 +13,15 @@ const create =  async (payload) => {
   }} = global;
   try {
     let game = await Game.createGame(payload);
+    game = await Game.getGame(game.id);
     SocketService.triggerUpdate(game.opponent_player, game);
+    return game;
   } catch (err) {
     throw getBadRequestObject(`Unable to create new game: ${JSON.stringify(err)}`);
   }
 };
 
-const guessWord = async (gameId, word, currentUserId) => {
+const guessWord = async (gameId, word) => {
   const { db: {
     models: {
       Game
@@ -29,14 +31,13 @@ const guessWord = async (gameId, word, currentUserId) => {
   let game = await Game.getGame(gameId);
   if (game.word === word) {
     game = await endGame(gameId, game.opponent_player);
-    let event = game.id;
-    SocketService.triggerUpdate(event, game);
+    SocketService.triggerUpdate(game.id, game);
     return game;
   }
   throw getBadRequestObject(`Word Match failed: ${JSON.stringify(err)}`);
 }
 
-const endGame =  async (gameId, winner) => {
+const endGame = async (gameId, winner) => {
   const { db: {
     models: {
       Game
@@ -56,7 +57,7 @@ const endGame =  async (gameId, winner) => {
   }
 };
 
-const getAllByUser =  async (userId) => {
+const getAllByUser = async (userId) => {
   const { db: {
     models: {
       Game
@@ -70,7 +71,7 @@ const getAllByUser =  async (userId) => {
   }
 };
 
-const get =  async (gameId) => {
+const get = async (gameId, currentUserId) => {
   const { db: {
     models: {
       Game
@@ -78,7 +79,10 @@ const get =  async (gameId) => {
   }} = global;
 
   try {
-    return await Game.getGame(gameId);
+    let game = await Game.getGame(gameId);
+    if( game.opponent_player === currentUserId )
+      delete game.word;
+    return game;
   } catch (err){
     throw getNoContentObject(`Couldn't get game: ${JSON.stringify(err)}`);
   }

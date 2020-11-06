@@ -1,14 +1,6 @@
 function listenForConnections(io) {
   io.on('connection', (socket) => {
-    console.log("SOCKETS");
-    console.log(socket.id);
-    console.log(JSON.stringify(socket.handshake));
-    console.log(socket.data);
-    console.log(socket.query);
-  });
-
-  io.on('authenticate', (socket) => {
-
+    console.log(`New Connection with socket ${socket.id}`);
   });
 }
 

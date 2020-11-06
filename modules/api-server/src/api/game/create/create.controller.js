@@ -1,14 +1,14 @@
 const { OK, ERROR }  = require('../../../utils/helper')
 const { create } = require('../../../services/game')
 
-exports.create = async (req, res, next) => {
+exports.create = async (req, res) => {
   try {
     const {
       body: {
         word,
         opponent_player,
       },
-      user:{
+      user: {
         userId: host_player
       }
     } = req;

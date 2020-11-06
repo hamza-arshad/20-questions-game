@@ -47,48 +47,43 @@ class User extends Sequelize.Model {
   }
 
   static associate(models) {
-    let { Role } = models;
+    const { Role } = models;
     this.belongsTo(Role, {
       foreignKey: 'role_id'
     });
   }
 
   static createUser (payload) {
-    return this.create(payload, {
-      include: [
-        {
-          model: global.db.models.Role,
-          attributes: ['name']
-        }
-      ],
-      attributes: {exclude: ['password']}
-    });
+    return this.create(payload);
   }
 
   static async getAllExcept (id) {
-    let users = await this.findAll({
+    return this.findAll({
       where: {
         id: {[Op.ne]: id}
       },
       attributes: {exclude: ['password']}
     });
-    return users;
   }
 
   static async getUser(id) {
-    let user = await this.findOne({
+    const { db: {
+      models: {
+        Role
+      }
+    }} = global;
+    return this.findOne({
       where: {
         id
       },
       include: [
         {
-          model: global.db.models.Role,
+          model: Role,
           attributes: ['name']
         }
       ],
       attributes: {exclude: ['password']}
     });
-    return user;
   }
 
   static async checkUserAlreadyExist (where) {
@@ -103,18 +98,22 @@ class User extends Sequelize.Model {
   }
 
   static async getUserByEmail (email) {
-    let user = await this.findOne({
+    const { db: {
+      models: {
+        Role
+      }
+    }} = global;
+    return this.findOne({
       where:{
         email
       },
       include:[
         {
-          model: global.db.models.Role,
+          model: Role,
           attributes: ['name']
         }
       ]
     });
-    return user;
   }
 }
 
